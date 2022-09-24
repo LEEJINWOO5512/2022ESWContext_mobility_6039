@@ -34,13 +34,12 @@ import ringing_alarm as alarm
 #####################################################################################################################
 
 # <함수 정의>
-#1. 68 face landmark 중 6 eye landmark 기반으로 EAR 비율 도출
-#2. EAR_THRESH 도출을 위한 EAR 최대 평균값(OPEN_EAR) 계산
-#3. EAR_THRESH 도출을 위한 EAR 최소 평균값(CLOSE_EAR) 계산 및 EAR_THRESH 도출(50%)
+#1. eye_aspect_ratio: 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
+#2. init_open_ear: EAR_THRESH 도출을 위한 EAR 최대 평균값(OPEN_EAR) 계산
+#3. init_close_ear: EAR_THRESH 도출을 위한 EAR 최소 평균값(CLOSE_EAR) 계산 및 EAR_THRESH 도출(50%)
 
 
-
-#1. 68 face landmark 중 6 eye landmark 기반으로 EAR 비율 도출
+#1. 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
 def eye_aspect_ratio(eye) :
     A = dist.euclidean(eye[1], eye[5])
     B = dist.euclidean(eye[2], eye[4])
@@ -51,9 +50,9 @@ def eye_aspect_ratio(eye) :
 #2. EAR_THRESH 도출을 위한 EAR 최대 평균값(OPEN_EAR) 계산
 def init_open_ear() :
     time.sleep(5)   # sleep 함수 = 일시정지(time.sleep(5)=5초 일시정지)
-    print("open init time sleep")
-    ear_list = [] # 측정된 EAR 값이 저장될 리스트
-    th_message1 = Thread(target = init_message)
+    print("Measuring init OPEN EAR")
+    ear_list = [] # init_open_ear 평균 도출을 위한 EAR값 표본 리스트
+    th_message1 = Thread(target = init_message_open)
     th_message1.deamon = True
     th_message1.start()
     # 과정 1: 운전자가 눈을 뜨고 있을 때의 평균 EAR 값 결정(OPEN_EAR)
@@ -63,15 +62,16 @@ def init_open_ear() :
     global OPEN_EAR
     OPEN_EAR = sum(ear_list) / len(ear_list) # 측정한 EAR 값의 평균 값이 저장될 변수
     print("open list =", ear_list, "\nOPEN_EAR =", OPEN_EAR, "\n")
+    alarm.sound_alarm("finish_init.wav")
 
 #3. EAR_THRESH 도출을 위한 EAR 최소 평균값(CLOSE_EAR) 계산 및 EAR_THRESH 도출(50%)
 def init_close_ear() : 
     time.sleep(2)
     th_open.join()
     time.sleep(5)
-    print("close init time sleep")
+    print("Measuring init CLOSE EAR")
     ear_list = []
-    th_message2 = Thread(target = init_message)
+    th_message2 = Thread(target = init_message_close)
     th_message2.deamon = True
     th_message2.start()
     time.sleep(1)
@@ -84,44 +84,45 @@ def init_close_ear() :
     global EAR_THRESH
     EAR_THRESH = (((OPEN_EAR - CLOSE_EAR) / 2) + CLOSE_EAR) #EAR_THRESH means 50% of the being opened eyes state
     print("close list =", ear_list, "\nCLOSE_EAR =", CLOSE_EAR, "\n")
-    print("The last EAR_THRESH's value :",EAR_THRESH, "\n")
+    print("The EAR_THRESH value :",EAR_THRESH, "\n")
+    alarm.sound_alarm("finish_init.wav")
+    time.sleep(3)
+    alarm.sound_alarm("start_process.wav")
 
-def init_message() :
-    print("init_message")
-    alarm.sound_alarm("init_sound.mp3")
+def init_message_open() :
+    print("init_message_OPEN")
+    alarm.sound_alarm("init_sound_open.wav")
+
+def init_message_close() :
+    print("init_message_CLOSE")
+    alarm.sound_alarm("init_sound_close.wav")
 
 #####################################################################################################################
-#1. Variables for checking EAR.
-#2. Variables for detecting if user is asleep.
-#3. When the alarm rings, measure the time eyes are being closed.
-#4. When the alarm is rang, count the number of times it is rang, and prevent the alarm from ringing continuously.
-#5. We should count the time eyes are being opened for data labeling.
-#6. Variables for trained data generation and calculation fps.
-#7. Detect face & eyes.
-#8. Run the cam.
-#9. Threads to run the functions in which determine the EAR_THRESH. 
 
-#1.
+# <초기 세팅 session>
+
+#1. EAR 측정을 위한 Global Variables 초기화
 OPEN_EAR = 0 #For init_open_ear()
 EAR_THRESH = 0 #Threashold value
 
-#2.
+#2. Variables for detecting if user is asleep.
 #It doesn't matter what you use instead of a consecutive frame to check out drowsiness state. (ex. timer)
 EAR_CONSEC_FRAMES = 20 
 COUNTER = 0 #Frames counter.
 
-#3.
+#3. When the alarm rings, measure the time eyes are being closed.
 closed_eyes_time = [] #The time eyes were being offed.
 TIMER_FLAG = False #Flag to activate 'start_closing' variable, which measures the eyes closing time.
 ALARM_FLAG = False #Flag to check if alarm has ever been triggered.
 
-#4. 
+#4. When the alarm is rang, count the number of times it is rang, and prevent the alarm from ringing continuously.
 ALARM_COUNT = 0 #Number of times the total alarm rang.
 RUNNING_TIME = 0 #Variable to prevent alarm going off continuously.
 
-#5.    
+#5. We should count the time eyes are being opened for data labeling.
 PREV_TERM = 0 #Variable to measure the time eyes were being opened until the alarm rang.
 
+#6. Variables for trained data generation and calculation fps.
 #6. make trained data 
 np.random.seed(9)
 power, nomal, short = mtd.start(25) #actually this three values aren't used now. (if you use this, you can do the plotting)
@@ -132,20 +133,20 @@ result_data = []
 #For calculate fps
 prev_time = 0
 
-#7. 
-print("loading facial landmark predictor...")
+#7. Detect face & eyes.
+print("Loading facial landmark predictor...")
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 (lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
 (rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 
-#8.
-print("starting video stream thread...")
+#8. Run the cam.
+print("Starting video stream thread...")
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
 
-#9.
+#9. Threads to run the functions in which determine the EAR_THRESH. 
 th_open = Thread(target = init_open_ear)
 th_open.deamon = True
 th_open.start()
@@ -155,10 +156,14 @@ th_close.start()
 
 #####################################################################################################################
 
+# <main 실행문>
+
+
 while True:
     frame = vs.read()
     frame = imutils.resize(frame, width = 1000)
     
+    # Preprocessing(전처리 과정 - 조명 영향 최소화)
     L, gray = lr.light_removing(frame)
     
     rects = detector(gray,0)
@@ -177,7 +182,7 @@ while True:
         rightEAR = eye_aspect_ratio(rightEye)
 
         #(leftEAR + rightEAR) / 2 => both_ear. 
-        both_ear = (leftEAR + rightEAR) * 500  #I multiplied by 1000 to enlarge the scope.
+        both_ear = (leftEAR + rightEAR) * 800  #I multiplied by 1000 to enlarge the scope.
 
         leftEyeHull = cv2.convexHull(leftEye)
         rightEyeHull = cv2.convexHull(rightEye)
