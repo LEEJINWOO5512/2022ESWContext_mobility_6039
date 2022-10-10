@@ -34,9 +34,8 @@ import serial
 '''
 #####################################################################################################################
 
-HP = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
 MT = serial.Serial('/dev/ttyACM1', 9600)
-BT = serial.Serial('/dev/ttyACM2', 9600)
+BT = serial.Serial('/dev/ttyACM0', 9600)
 
 # <함수 정의>
 #1. eye_aspect_ratio: 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
@@ -103,15 +102,19 @@ def init_message_close() :
     alarm.sound_alarm("init_sound_close.wav")
 
 def controlMotor(ain):
-    if(ain==1):
+    if(ain==0):
         MT.write(b'1')
-    elif(ain==0):
+    elif(ain==1):
+        MT.write(b'0')
+    else:
         MT.write(b'0')
 
 def sendingBT(ain):
-    if(ain==1):
+    if(ain==0):
         BT.write(b'1')
-    elif(ain==0):
+    elif(ain==1):
+        BT.write(b'0')
+    else:
         BT.write(b'0')
 
 def main_func(av):
@@ -183,6 +186,8 @@ th_close.start()
 
 # <main 실행문>
 
+main_func(1)
+
 while True:
     frame = vs.read()
     frame = imutils.resize(frame, width = 1000)
@@ -212,7 +217,6 @@ while True:
         rightEyeHull = cv2.convexHull(rightEye)
         cv2.drawContours(frame, [leftEyeHull], -1, (0,255,0), 1)
         cv2.drawContours(frame, [rightEyeHull], -1, (0,255,0), 1)
-        
 
         if both_ear < EAR_THRESH :
             if not TIMER_FLAG:
@@ -242,9 +246,9 @@ while True:
                     test_data.append([OPENED_EYES_TIME, round(closing_time*10,3)])
                     result = mtd.run([OPENED_EYES_TIME, closing_time*10], power, nomal, short)
                     result_data.append(result)
-                    t = Thread(target = alarm.select_alarm, args = (result, ))
-                    t.deamon = True
-                    t.start()
+                    t1 = Thread(target = alarm.select_alarm, args = (result, ))
+                    t1.deamon = True
+                    t1.start()
                     main_func(result)
 
         else :
