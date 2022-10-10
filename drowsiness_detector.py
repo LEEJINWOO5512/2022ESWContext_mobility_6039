@@ -19,6 +19,7 @@ from check_cam_fps import check_fps
 import make_train_data as mtd
 import light_remover as lr
 import ringing_alarm as alarm
+import serial
 
 '''
 얼굴와 안구 landmark 검출 기법(HOG)
@@ -32,6 +33,10 @@ import ringing_alarm as alarm
 - 평소 눈의 Threshold(THRESH);임계값을 설정한 후 이를 기준으로 기수면상태 확인
 '''
 #####################################################################################################################
+
+HP = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+MT = serial.Serial('/dev/ttyACM1', 9600)
+BT = serial.Serial('/dev/ttyACM2', 9600)
 
 # <함수 정의>
 #1. eye_aspect_ratio: 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
@@ -97,6 +102,26 @@ def init_message_close() :
     print("init_message_CLOSE")
     alarm.sound_alarm("init_sound_close.wav")
 
+def controlMotor(ain):
+    if(ain==1):
+        MT.write(b'1')
+    elif(ain==0):
+        MT.write(b'0')
+
+def sendingBT(ain):
+    if(ain==1):
+        BT.write(b'1')
+    elif(ain==0):
+        BT.write(b'0')
+
+def main_func(av):
+    tM = Thread(target=controlMotor, args=(av,))
+    tB = Thread(target=sendingBT, args=(av,))
+    tM.start()
+    tB.start()
+    tM.join()
+    tB.join()
+
 #####################################################################################################################
 
 # <초기 세팅 session>
@@ -157,7 +182,6 @@ th_close.start()
 #####################################################################################################################
 
 # <main 실행문>
-
 
 while True:
     frame = vs.read()
@@ -221,6 +245,7 @@ while True:
                     t = Thread(target = alarm.select_alarm, args = (result, ))
                     t.deamon = True
                     t.start()
+                    main_func(result)
 
         else :
             COUNTER = 0
