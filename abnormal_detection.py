@@ -1,7 +1,6 @@
 
 # coding: utf-8
 # In[1]:
-# https://github.com/woorimlee/drowsiness-detection
 
 import numpy as np
 import imutils
@@ -34,14 +33,19 @@ import serial
 '''
 #####################################################################################################################
 
-MT = serial.Serial('/dev/ttyACM1', 9600)
-BT = serial.Serial('/dev/ttyACM0', 9600)
+MT = serial.Serial('/dev/ttyACM1', 9600)  # Motor, LED 제어 Arduino 시리얼 포트 설정
+BT = serial.Serial('/dev/ttyACM0', 9600)  # Bluetooth 통신 Arduino 시리얼 포트 설정
 
 # <함수 정의>
+# (초기 EAR 설정부)
 #1. eye_aspect_ratio: 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
 #2. init_open_ear: EAR_THRESH 도출을 위한 EAR 최대 평균값(OPEN_EAR) 계산
 #3. init_close_ear: EAR_THRESH 도출을 위한 EAR 최소 평균값(CLOSE_EAR) 계산 및 EAR_THRESH 도출(50%)
-
+# (제어부)
+#4.
+#5.
+#6.
+#7.
 
 #1. 68 face landmark 중 6개의 eye landmark 기반으로 EAR 비율 도출
 def eye_aspect_ratio(eye) :
@@ -93,14 +97,17 @@ def init_close_ear() :
     time.sleep(3)
     alarm.sound_alarm("start_process.wav")
 
+#4. 초기 OPEN_EAR 값 설정 음성안내
 def init_message_open() :
     print("init_message_OPEN")
     alarm.sound_alarm("init_sound_open.wav")
 
+#5. 초기 CLOSE_EAR 값 설정 음성안내
 def init_message_close() :
     print("init_message_CLOSE")
     alarm.sound_alarm("init_sound_close.wav")
 
+#6. 비정상 상태 판단값(result)에 따른 Motor/LED 구동 Arduino 제어부
 def controlMotor(ain):
     if(ain==0):
         MT.write(b'1')
@@ -109,6 +116,7 @@ def controlMotor(ain):
     else:
         MT.write(b'0')
 
+#7. 비정상 상태 판단값(result)에 따른 Bluetooth 통신 Arduino 제어부
 def sendingBT(ain):
     if(ain==0):
         BT.write(b'1')
@@ -117,7 +125,8 @@ def sendingBT(ain):
     else:
         BT.write(b'0')
 
-def main_func(av):
+# Motor/LED 및 Bluetooth 통신 통합 제어부(using Multithread)
+def control_func(av):
     tM = Thread(target=controlMotor, args=(av,))
     tB = Thread(target=sendingBT, args=(av,))
     tM.start()
@@ -244,12 +253,12 @@ while True:
                     print("The time eyes is being opened before the alarm went off :", OPENED_EYES_TIME)
                     print("closing time :", closing_time)
                     test_data.append([OPENED_EYES_TIME, round(closing_time*10,3)])
-                    result = mtd.run([OPENED_EYES_TIME, closing_time*10], power, nomal, short)
+                    result = mtd.run([OPENED_EYES_TIME, closing_time*10], power, nomal, short)  # abnormal state 판단(result = state of driver)
                     result_data.append(result)
-                    t1 = Thread(target = alarm.select_alarm, args = (result, ))
+                    t1 = Thread(target = alarm.select_alarm, args = (result, ))  # abnormal state 단계에 따른 Alarm 실행
                     t1.deamon = True
                     t1.start()
-                    main_func(result)
+                    control_func(result)  # abnormal state 단계에 따른 Arduino control(MOTOR/LED, BLUETOOTH)
 
         else :
             COUNTER = 0
