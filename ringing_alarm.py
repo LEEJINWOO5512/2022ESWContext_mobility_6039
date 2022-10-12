@@ -21,12 +21,8 @@ https://www.jbmpa.com/pygame/10
 '''
 
 def select_alarm(result) :
-    if result == 0:
+    if result == 1:
         sound_alarm("power_alarm.wav")
-    elif result == 1:
-        sound_alarm("nomal_alarm.wav")
-    else:
-        sound_alarm("short_alarm.mp3")
 
 def sound_alarm(path) :  # path에 해당하는 음악파일 재생 함수
     pygame.mixer.init()  # mixer 모듈의 초기화 함수(라이브러리 초기화 필요)
